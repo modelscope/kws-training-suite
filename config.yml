@@ -1,0 +1,34 @@
+work_dir: /mnt/data/data/ckpt_0923
+workers: 60
+keywords:
+- 0_ni_hao_mi_ya,1,2,3,4
+main_keyword: 0_ni_hao_mi_ya
+test_pos_data_dir: /mnt/data/data/himiya.dev/origin_pos_4mic
+test_pos_anno_dir: /mnt/data/data/himiya.dev/annotation_pos_4mic
+test_neg_data_dir: /mnt/data/data/himiya.dev/origin_neg_4mic
+train_pos_list:
+- /mnt/data/data/wakeup/miya_align_list_train.txt,0.2
+- /mnt/data/data/wakeup/miya_align_list_aug.txt,0.8
+train_neg_list:
+- /mnt/data/data/corpus/list/King-ASR-111_16k.txt
+- /mnt/data/data/DNS-Challenge/dns_clean.txt
+single_noise1_list:
+- /mnt/data/data/DNS-Challenge/dns_noise.txt,0.2
+- /mnt/data/data/noise/list/tv_noise_list.txt,0.8
+multi_noise1_list:
+- /mnt/data/data/noise/list/2021-12-10_sweeperfa.txt,0.2
+- /mnt/data/data/noise/list/wind_noise_2ch_list.txt,0.8
+train_noise2_list:
+- /mnt/data/data/noise/list/wind_noise_2ch_list.txt,0.3
+- /mnt/data/data/noise/list/noise_music_residual_list.txt,0.7
+train_interf_list:
+- /mnt/data/data/noise/list/tv_noise_list.txt,0.6
+- /mnt/data/data/DNS-Challenge/dns_noise.txt,0.4
+train_ref_list:
+- /mnt/data/data/noise/list/tv_noise_list.txt,0.9
+- /mnt/data/data/noise/list/music_fa.txt,0.1
+max_epochs: 20
+val_iters_per_epoch: 10
+train_iters_per_epoch: 40
+mic_number: 2
+max_far: 1.2
