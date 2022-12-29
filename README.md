@@ -219,3 +219,22 @@ python pipeline.py config.yml --remote_dataset /data/open_dataset
 - 给出排序第一名的模型
 
 第一轮和第二轮产物相同，第一轮存放路径前缀为first，第二轮为second
+
+## 其他工具
+### kws模型打标工具
+套件中提供的kws_align.py脚本可以利用唤醒模型对线上音频做筛选和打标，处理后的数据即可用来训练正式模型。
+
+脚本调用方式如下：
+
+```
+kws_align.py [-h] -m MODEL_TXT [-o OUT_DIR] [-t THREADS] input keyword_desc
+其中：
+input			是线上音频所在目录
+keyword_desc	是唤醒词描述符，针对”小爱同学“模型是 0_xiao_ai_tong_xue,1,2,3,4
+-m MODEL_TXT	从附件中zip包解压得到txt模型参数文件
+-o OUT_DIR		指定生成的音频数据输出目录
+-t THREADS		并发处理线程数
+```
+例如：
+`python kws_align.py /your/audio/data/ 0_xiao_ai_tong_xue,1,2,3,4 -m top_28_checkpoint_0089.txt`
+
