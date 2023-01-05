@@ -186,12 +186,43 @@ python pipeline.py -1 /your/test_dir/config.yml
 红框中是最终选择的最优模型信息：
 
 - .pth是pytorch格式保存的模型，可以使用此模型继续训练
-- .txt是唤醒工具使用的模型参数文件
+- .txt是唤醒工具使用的模型参数文件，供后续测试使用
 - model kw frr and level一行表示
    - 建议此模型使用时唤醒阈值设置为`0.86`
    - 此时唤醒词'0_ni_hao_mi_ya'在所有测试场景中的综合拒识率为`0.14035087719298245`，换算成唤醒率约为`1 - 0.14035087719298245 = 0.86`
 
 ![image.png](https://intranetproxy.alipay.com/skylark/lark/0/2022/png/2639/1670226175459-10893a4c-6f62-4815-930e-25784a63c84e.png#clientId=uafcf068e-9738-4&crop=0&crop=0&crop=1&crop=1&from=paste&height=794&id=u993996b4&margin=%5Bobject%20Object%5D&name=image.png&originHeight=1588&originWidth=2146&originalType=binary&ratio=1&rotation=0&showTitle=false&size=372161&status=done&style=none&taskId=u50c56780-d0b0-4909-a9c2-ddf530241ad&title=&width=1073)
+
+##### 测试mini模型
+可以复制一份唤醒工具配置文件，
+
+```
+# 以下命令仍然都在唤醒套件目录下运行
+# 复制唤醒工具配置
+cp /your/test_dir/tmp.conf .
+```
+手工修改配置文件中的唤醒模型路径，指向上面生成的模型参数文件(.txt)，例如：
+
+```
+# 唤醒模型路径。
+kws_model_base = /your/test_dir/first_txt/top_01_checkpoint_0399_loss_train_0.1136_loss_val_0.1098.txt
+```
+运行唤醒工具，参数分别为配置文件，测试音频，处理后的输出音频。
+输出信息：
+
+* detected x 中x表示唤醒id
+* kw表示唤醒词
+* spot, bestend, duration都是唤醒时间信息
+* confidence是置信度
+* bestch是通道选择信息
+
+```
+ ./bin/SoundConnect ./tmp.conf test.wav ./output.wav
+# 以下为输出
+[detected 0], kw: 0_xiao_ai_tong_xue, spot: 13.219999, bestend: 13.219999, duration: [12.139999-12.940000], confidence: 0.926316, bestch: 0
+[detected 1], kw: 0_xiao_ai_tong_xue, spot: 31.699999, bestend: 31.699999, duration: [30.660000-31.420000], confidence: 0.914814, bestch: 0
+[detected 2], kw: 0_xiao_ai_tong_xue, spot: 40.899998, bestend: 40.899998, duration: [39.899998-40.619999], confidence: 0.853534, bestch: 0
+```
 
 ## 配置和运行
 ### 配置
