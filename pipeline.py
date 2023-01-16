@@ -11,16 +11,11 @@ from modelscope.trainers import build_trainer
 from modelscope.utils.logger import get_logger
 
 from download import Musan, AIShell2, DNSChallenge
-from evaluate.batch_roc import batch_roc
+from evaluate.batch_roc import batch_roc, check_conf
 from evaluate.roc_sort import roc_sort
-from evaluate.util.KWSEval import loadAnnot
 
 MODEL_ID = 'damo/speech_dfsmn_kws_char_farfield_16k_nihaomiya'
 REVISION = 'v1.1.0'
-
-DEFAULT_MIC_NUMBER = 2
-DEFAULT_REF_NUMBER = 1
-DEFAULT_KWS_LOG_LEVEL = 2
 
 BASE_POS_DATA = 'data_pos'
 BASE_ANNO = 'data_annotation'
@@ -132,38 +127,6 @@ def validate(cfg, work_dir, model_dir):
     return model_pth_path
 
 
-def check_conf(cfg, use_remote):
-    work_dir = cfg['work_dir']
-    logger.info('Local work dir: %s', work_dir)
-    if os.path.exists(work_dir):
-        r = input(f'Directory "{work_dir}" already exists. Data may be OVERRIDE. Proceed(Y/n)? ')
-        if r.lower() in ('n', 'no'):
-            sys.exit(-1)
-    else:
-        os.makedirs(work_dir)
-    # 根据mic, ref数量计算配置参数
-    mic_number = cfg.get('mic_number', DEFAULT_MIC_NUMBER)
-    ref_number = cfg.get('ref_number', DEFAULT_REF_NUMBER)
-    cfg['nummics'] = mic_number
-    cfg['numrefs'] = ref_number
-    cfg['numins'] = mic_number+ref_number
-    # 配置文件中chorder都留空，使用默认顺序，即ref通道排在最后的情况，finetune输出增加一个打标通道
-    # cfg['chorder'] = ','.join([str(i) for i in list(range(mic_number+2))])
-    cfg['validate_numouts'] = mic_number
-    cfg['finetune_numouts'] = mic_number+ref_number+1
-    cfg['kws_log_level'] = DEFAULT_KWS_LOG_LEVEL
-    # 根据keywords配置拼装关键词
-    cfg['kws_decode_desc'] = '\n'.join(cfg['keywords'])
-    # 校验正样本标注
-    kw_list = [k.split(',')[0] for k in cfg['keywords']]
-    annos = loadAnnot(cfg['test_pos_anno_dir'])
-    for scene_name, scene in annos.items():
-        for file_name, kw in scene.items():
-            for kw_name in kw.keys():
-                if kw_name not in kw_list:
-                    raise RuntimeError(f'Found unknown keyword {kw_name} in scene {scene_name}')
-
-
 def compute_num_syn(cfg):
     num_syn = 0
     for kw_conf in cfg['keywords']:
@@ -242,7 +205,7 @@ def train(cfg, train_dir, single_rate=BASETRAIN_RATIO_FIRST, max_epochs=None, mo
 def model2txt(model_dir, txt_dir):
     # 用扩展名过滤出模型文件，按loss排序
     model_files = [i for i in os.listdir(model_dir) if i.endswith('.pth')]
-    top_n = math.ceil(len(model_files) / 5.0)
+    top_n = math.ceil(len(model_files) / 10.0)
     # the length of the file name is fixed, so use absolute offset to get the loss of validation
     # checkpoint_0011_loss_train_0.5757_loss_val_0.5313.pth
     model_files = sorted(model_files, key=lambda i: float(i[43:49]))
