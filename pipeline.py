@@ -23,7 +23,7 @@ BASE_NEG_DATA = 'data_neg'
 
 MAX_EPOCHS = 500
 BASETRAIN_RATIO_FIRST = 0.5
-BASETRAIN_RATIO_SECOND = 0.1
+BASETRAIN_RATIO_SECOND = 0.05
 
 # max false alarm (times/hour)
 FAR_TH = 0.2
@@ -61,9 +61,9 @@ def main(cfg, download_dir, base_only):
     second_train_dir = os.path.join(work_dir, 'second')
     os.makedirs(second_train_dir, exist_ok=True)
     # 通过动态计算关联前后两次训练的轮数，目前有两种习惯配置:
-    # 1) base_rate=0.1, second_epoch_num=100
-    # 2) base_rate=0.2, second_epoch_num=200
-    second_epoch_num = int(first_epoch_num * BASETRAIN_RATIO_SECOND * 2)
+    # 1) base_rate=0.05, second_epoch_num=100
+    # 2) base_rate=0.1, second_epoch_num=200
+    second_epoch_num = int(first_epoch_num * BASETRAIN_RATIO_SECOND * 4)
     train(cfg,
           second_train_dir,
           single_rate=BASETRAIN_RATIO_SECOND,
@@ -86,14 +86,14 @@ def prepare_data(download_dir, cfg):
     aishell.fetch()
     neg_list = (aishell.list_files['all'], dns.list_files['clean'])
     merge_conf(cfg, 'train_neg_list', neg_list)
-    ref_list = (aishell.list_files['all'] + ',1',
-                musan.list_files['music'] + ',0.03',
-                musan.list_files['speech'] + ',0.03')
+    ref_list = (aishell.list_files['all'] + ',1.8',
+                musan.list_files['music'] + ',0.1',
+                musan.list_files['speech'] + ',0.1')
     merge_conf(cfg, 'train_ref_list', ref_list)
     merge_conf(cfg, 'train_interf_list', ref_list)
-    noise_list = (aishell.list_files['all'] + ',0.5',
-                                 dns.list_files['noise'] + ',0.15',
-                                 musan.list_files['all'] + ',0.03')
+    noise_list = (aishell.list_files['all'] + ',0.6',
+                                 dns.list_files['noise'] + ',0.2',
+                                 musan.list_files['all'] + ',0.2')
     merge_conf(cfg, 'single_noise1_list', noise_list)
     merge_conf(cfg, 'multi_noise1_list', noise_list)
 
@@ -208,7 +208,10 @@ def model2txt(model_dir, txt_dir):
     top_n = math.ceil(len(model_files) / 10.0)
     # the length of the file name is fixed, so use absolute offset to get the loss of validation
     # checkpoint_0011_loss_train_0.5757_loss_val_0.5313.pth
-    model_files = sorted(model_files, key=lambda i: float(i[43:49]))
+    # model_files = sorted(model_files, key=lambda i: float(i[43:49]))
+    f = 'loss_val_'
+    model_files = sorted(model_files, 
+        key=lambda a: float(a[a.find(f) + len(f):a.find(f) + len(f)+6]))
     if not os.path.exists(txt_dir):
         os.makedirs(txt_dir)
     for i in range(min(len(model_files), top_n)):

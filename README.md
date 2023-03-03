@@ -269,3 +269,21 @@ keyword_desc	是唤醒词描述符，针对”小爱同学“模型是 0_xiao_ai
 例如：
 `python kws_align.py /your/audio/data/ 0_xiao_ai_tong_xue,1,2,3,4 -m top_28_checkpoint_0089.txt`
 
+### 手工测试模型
+如果训练中途想测试模型性能，可以按如下步骤操作。
+#### 准备
+新建一个test_dir，把训练用config.yml 复制过来，并把work dir配置项改成test_dir。也可以根据硬件资源调整workers配置项，并发workers越多测试越快。
+
+#### 转换模型
+
+```
+# train_dir 为训练目录
+python print_model.py /train_dir/first/checkpoint_xx.pth > /test_dir/txt/checkpoint_xxx.txt 
+```
+如果想同时测试多个模型，则重复执行以上命令。
+
+#### 测试
+脚本会逐个测试 /test_dir/txt/下的所有模型，中间结果保存在/test_dir/roc_eval/下，最终结果保存在 /test_dir/roc目录下。
+```
+PYTHONPATH=. python evaluate/batch_roc.py /test_dir/config.yml /test_dir/txt/
+```

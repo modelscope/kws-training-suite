@@ -7,19 +7,19 @@
 import argparse
 import os
 import sys
-import math
 import tempfile
+from concurrent import futures
+
 import numpy as np
 import re
 import traceback
-import threading
-import queue
 
 from modelscope.utils.audio.audio_utils import update_conf
 from scipy.io import wavfile
+from tqdm import tqdm
 
 # no. of threads
-NUM_THS = 50
+NUM_THS = 1
 # audio repeats
 TRAIN_REPEAT = 2
 # data block size (second)
@@ -174,7 +174,6 @@ def applyFE(fconf, fin):
     # call fe
     cmd = FE_EXE_PATH + ' ' + fconf
     cmd += ' ' + fin + ' ' + feoutpath + ' 1>' + stdoutpath + ' 2>' + stderrpath
-    # print(cmd)
 
     retval = 0
     try:
@@ -322,11 +321,6 @@ def detectBoundary(bestpath, stseq):
                 augpath[kwoffset + kwlen] = stseq[-1]
 
             kwlen += 1
-
-    # print(bestpath)
-    # print(augpath)
-    # print(augpath[kwoffset: kwoffset + kwlen])
-
     return augpath, kwoffset, kwlen, relax
 
 
@@ -375,9 +369,6 @@ def alignByKWS(forigin, datarpt, flog):
     if duration is None:
         return None
 
-    # print(duration)
-    # print(bestpath)
-
     # find decode path boundary
     augpath, labeloffset, labellen, labelrelax = detectBoundary(bestpath, kwdict[kw])
 
@@ -397,9 +388,6 @@ def alignByKWS(forigin, datarpt, flog):
         lsize = int(FS * BLOCK_SIZE * 2)
 
     uttlen = min(lsize * labellen, datarpt.shape[0] - tstart)
-
-    # print(datarpt.shape)
-    # print(tstart, lsize, uttlen)
 
     # copy wave data
     data2 = np.zeros((uttlen, 2), dtype=dtypepad)
@@ -436,53 +424,37 @@ def alignByKWS(forigin, datarpt, flog):
     return fout
 
 
-class AlignThread(threading.Thread):
+def align(conf_path, fin):
     """
-    taskqueue:          the task queue
+    align 1 file
+    fin:                    original audio file
     """
+    feinpath = None
+    feoutpath = None
+    stdoutpath = None
+    stderrpath = None
+    try:
+        # generate fe input
+        feinpath, feindata = createFeIn(fin)
 
-    def __init__(self, conf_path, taskqueue):
-        threading.Thread.__init__(self)
-        self.conf_path = conf_path
-        self.taskqueue = taskqueue
+        # apply fe
+        feoutpath, stdoutpath, stderrpath = applyFE(conf_path, feinpath)
 
-    def run(self):
-        while not self.taskqueue.empty():
-            fin = self.taskqueue.get()
-            self.taskqueue.task_done()
-
-            self.align(fin.strip())
-
-    def align(self, fin):
-        """
-        align 1 file
-        fin:                    original audio file
-        """
-        try:
-            # generate fe input
-            feinpath, feindata = createFeIn(fin)
-
-            # apply fe
-            feoutpath, stdoutpath, stderrpath = applyFE(self.conf_path, feinpath)
-
-            # align
-            fout = alignByKWS(fin, feindata, stdoutpath)
-            if fout is not None:
-                print('DONE: ' + fin + ' -> ' + fout)
-            else:
-                print('FAILED: ' + fin)
-        except:
-            traceback.print_exc()
-            print('FAILED: ' + fin)
-        finally:
-            if os.path.isfile(feinpath):
-                os.remove(feinpath)
-            if os.path.isfile(feoutpath):
-                os.remove(feoutpath)
-            if os.path.isfile(stdoutpath):
-                os.remove(stdoutpath)
-            if os.path.isfile(stderrpath):
-                os.remove(stderrpath)
+        # align
+        fout = alignByKWS(fin, feindata, stdoutpath)
+        return fin, fout
+    except IOError as e:
+        traceback.print_exc()
+        return fin, f'Error: {e}'
+    finally:
+        if feinpath and os.path.isfile(feinpath):
+            os.remove(feinpath)
+        if feoutpath and os.path.isfile(feoutpath):
+            os.remove(feoutpath)
+        if stdoutpath and os.path.isfile(stdoutpath):
+            os.remove(stdoutpath)
+        if stderrpath and os.path.isfile(stderrpath):
+            os.remove(stderrpath)
 
 
 if __name__ == '__main__':
@@ -494,6 +466,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--threads', help='parallel thread number, default: 1', type=int)
     args = parser.parse_args()
 
+    threads = args.threads if args.threads else NUM_THS
     basein = args.input
     if args.out_dir:
         baseout = args.out_dir
@@ -529,20 +502,17 @@ if __name__ == '__main__':
             flist = listFiles(basein, ['.wav', '.pcm'])
         elif fmt == '.f32':
             flist = listFiles(basein, ['.f32'])
+        else:
+            raise ValueError(f'Unsupported file type!')
     else:
         with open(basein, 'r', encoding='UTF-8') as fd:
             flist = fd.readlines()
 
-    # convert list to queue
-    fqueue = queue.Queue(len(flist))
-    for fin in flist:
-        fqueue.put(fin)
-
-    thl = []
-    for i in range(NUM_THS):
-        th = AlignThread(tmpconfpath, fqueue)
-        th.start()
-        thl.append(th)
-
-    for th in thl:
-        th.join()
+    tasks = []
+    with open(os.path.join(baseout, 'result.txt'), 'w') as result_f:
+        with futures.ThreadPoolExecutor(max_workers=threads) as executor:
+            for f in flist:
+                tasks.append(executor.submit(align, tmpconfpath, f))
+            for task in tqdm(futures.as_completed(tasks), total=len(tasks)):
+                result = task.result()
+                result_f.write(f'{result[0]}\t{result[1]}\n')

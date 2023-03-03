@@ -56,7 +56,7 @@ def batch_roc(work_dir, model_path, fe_conf, roc_dir, test_neg=True):
     for mp in list_files(model_path, '.txt'):
         tmpconfpath = os.path.join(work_dir, 'tmp.conf')
 
-        my_conf = {**fe_conf, 'kws_level': '0.0', 'kws_model': mp}
+        my_conf = {**fe_conf, 'kws_model': mp}
         update_conf(fe_conf_path, tmpconfpath, my_conf)
 
         name = os.path.split(mp)[1]
@@ -90,29 +90,6 @@ def list_files(path, ext, abs_path=True):
                     yield os.path.join(root, file)
                 else:
                     yield os.path.join(root, file)[path_length:]
-
-
-def generate_fe_conf(confin, confout, modelp):
-    """ generate front-end configure file
-
-    Args:
-        confin:                 input conf path
-        confout:                output conf path
-        modelp:                 model path
-    """
-    with open(confin, 'r', encoding='UTF-8') as fd:
-        lines = fd.readlines()
-    fd = open(confout, 'w', encoding='UTF-8')
-    for line in lines:
-        m = re.match('kws_model_base = (.+)', line)
-        if m:
-            fd.write('kws_model_base = ' + os.path.abspath(modelp) + '\n')
-        elif line.startswith('kws_level ='):
-            fd.write('kws_level = 0.0\n')
-        else:
-            fd.write(line)
-    fd.flush()
-    fd.close()
 
 
 def eval_on_manual_anno(conf_path, base_experiment, base_data, threads):
@@ -184,6 +161,9 @@ if __name__ == '__main__':
     parser.add_argument('model_dir', help='Directory stores model txt files')
     parser.add_argument('-p', '--pos_only', help='Only test positive scenario',
                         action='store_true')
+
+    parser.add_argument('-c', '--confidence', default='0.0',
+                        help='The threshold of kws confidence between [0.0, 1.0]',)
     parser.add_argument(
         '-o',
         '--output_dir',
@@ -195,8 +175,12 @@ if __name__ == '__main__':
         logger.error('Config file "%s" is not exist!', conf_file)
         sys.exit(-1)
     logger.info('Loading config from %s', conf_file)
+    confidence = float(args.confidence)
+    if confidence > 1 or confidence < 0:
+        raise ValueError(f'The confidence {confidence} is invalid!')
     with open(conf_file, encoding='utf-8') as f:
         conf = yaml.safe_load(f)
+    conf['kws_level'] = args.confidence
     check_conf(conf)
     work_dir = conf['work_dir']
 
