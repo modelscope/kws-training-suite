@@ -226,7 +226,7 @@ kws_model_base = /your/test_dir/first_txt/top_01_checkpoint_0399_loss_train_0.11
 
 ## 配置和运行
 ### 配置
-各配置项和说明，参见《KWS训练套件配置说明》。
+各配置项和说明，参见[《KWS训练套件配置说明》](https://github.com/alibaba-damo-academy/kws-training-suite/blob/main/HOW_TO_CONFIG.md)。
 ### 运行
 进入kws-training-scripts目录，运行以下命令：
 
